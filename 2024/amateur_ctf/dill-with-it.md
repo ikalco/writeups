@@ -1,4 +1,5 @@
 
+
 # AmateursCTF 2024 Writeup
 ## rev/dill-with-it (406 points)
 
@@ -6,16 +7,16 @@
 >Crisp green Larry lies Bathes, brining in vinegar Dill pickle delight
 
 ### TL;DR
-This challenge gives you a [python pickle](#python-pickles-and-rces) which is a binary serialization of a python object.\
+This challenge gives you a [python pickle](#python-pickles-and-rces) which is a binary serialization of a python object.
 It's based on a virtual machine that runs custom instructions to reconstruct the object.
 
-The virtual machine allows you to execute python, which the challenge uses to [obfuscate python code](#pain).\
-To deobfuscate it you must find the `pickletools` python module and use it to disassemble the pickle.\
+The virtual machine allows you to execute python, which the challenge uses to [obfuscate python code](#pain).
+To deobfuscate it you must find the `pickletools` python module and use it to disassemble the pickle.
 Then you can rebuild the script and do the second half of the challenge.
 
-Once you [deobfuscate the script](#actually-reverse-engineering) you'll see that it contains a list of numbers, this is the obfuscated flag.\
-To deobfuscate the flag you must realize that the script uses a seeded random number generator to do\
-operations on the flag. After that you can simply work backwards through the operations in the script until\
+Once you [deobfuscate the script](#actually-reverse-engineering) you'll see that it contains a list of numbers, this is the obfuscated flag.
+To deobfuscate the flag you must realize that the script uses a seeded random number generator to do
+operations on the flag. After that you can simply work backwards through the operations in the script until
 you get the flag. Then put all the reversed steps in a new script and you get a [solution](#solution).
 
 ### first look
@@ -26,42 +27,34 @@ larry = b"\x80\x04ctypes\nFunctionType\n(ctypes\nCodeType\n(I1\nI0\nI0\nI4\nI8\n
 print(loads(larry))
 ```
 
-The first thing mentioned is [**Python 3.10.12**](https://www.python.org/downloads/release/python-31012/) which is weird since it's kinda old\
-just in case we need it later we'll download and compile the tarball real quick
+The first thing mentioned is [**Python 3.10.12**](https://www.python.org/downloads/release/python-31012/) which is weird since it's kinda old.\
+Just in case we need it later we'll download and compile the tarball real quick
 
 Then it imports the function `loads` from the `pickle` module? \
-No idea what that is but a *quick google search* yields [this doc](https://docs.python.org/3/library/pickle.html)
+No idea what that is but a *quick google search* yields [this doc](https://docs.python.org/3.10/library/pickle.html)
 
 > The **pickle** module implements binary protocols for serializing and de-serializing a Python object structure.
 
->**`pickle.loads(...)`**
->Return the reconstituted object hierarchy of the pickled representation _data_ of an object. _data_ must be a [bytes-like object](https://docs.python.org/3/glossary.html#term-bytes-like-object).
+>**`pickle.loads(...)`**\
+>Return the reconstituted object hierarchy of the pickled representation _data_ of an object.\
+>_data_ must be a [bytes-like object](https://docs.python.org/3.10/glossary.html#term-bytes-like-object).
 
-You'll also notice that the serialization protocol version is dependent on the python version (remember **Python 3.10.12**) and in a big red box it says that \
+You'll also notice that the serialization protocol version is dependent on the python version (remember **Python 3.10.12**) and in a big red box it says that
 using the module can lead to **RCE**
 
 Ok.. so the code will deserialize the binary string into an object and print it. Right?
-```console
-┌──(kali㉿kali)-[~/dill-with-it]
-└─$ python3.10 main.py
-What's the flag? 
-> flag123
-Nah, try again.
-
-┌──(kali㉿kali)-[~/dill-with-it]
-└─$ 
-```
+![WEBP of running main.py](https://ikalco.github.io/writeups/2024/amateur_ctf/media/dill-with-it-1.webm)
 
 hmm..
 It seems to be taking user input but an object can't do that so it's probably using that **RCE** from earlier to run `input()` or something like that
 
 ### python pickles and RCE's
 Looks like its time for google again,
-the first link is this [this article](https://davidhamann.de/2020/04/05/exploiting-python-pickle/#how-to-dump-and-load) which explains the **RCE** vulnerability of `pickle`
+the first link is this an article[^1] which explains the **RCE** vulnerability of `pickle`
 
 >.\.\.\. contains opcodes that are then one-by-one executed as soon as we load the pickle back in.
 
-Hmm... so `pickle` doesn't actually serialize the object but instead\
+Hmm... so `pickle` doesn't actually serialize the object but instead
 turns it into instructions on how to recreate the object
 
 But how do we reverse engineer the `pickle` instructions?\
@@ -69,37 +62,14 @@ Thankfully the above article shows us that we can use `pickletools`
 >If you are curious how the instructions in this pickle look like, you can use `pickletools` to create a disassembly: `pickletools.dis(pickled)`
 
 So lets do that
-```console
-┌──(kali㉿kali)-[~/dill-with-it]
-└─$ python3.10
-Python 3.10.12 (main, Apr  7 2024, 13:15:12) [GCC 13.2.0] on linux
-Type "help", "copyright", "credits" or "license" for more information.
->>> import pickletools
->>> larry = b"\x80\x04ctypes\nFunctionType\n(ctypes\nCodeType\n(I1\nI0\nI0\nI4\nI8\nI67\nCbt\x00\xa0\x01|\x00d\x01\xa1\x02}\x01t\x02|\x01\x83\x01d\x00d\x00d\x02\x85\x03\x19\x00d\x00d\x03\x85\x02\x19\x00}\x00d\x04}\x02t\x03d\x05t\x04|\x00\x83\x01d\x06\x83\x03D\x00]\x11}\x03|\x02t\x05t\x00|\x00|\x03|\x03d\x06\x17\x00\x85\x02\x19\x00d\x07\x83\x02\x83\x017\x00}\x02q\x1d|\x02S\x00(NVbig\nI-1\nI-3\nV\nI0\nI8\nI2\nt(Vint\nVfrom_bytes\nVbin\nVrange\nVlen\nVchr\nt(\x8c\x04\xf0\x9f\x94\xa5\x8c\x04\xf0\x9f\xa4\xab\x8c\x04\xf0\x9f\xa7\x8f\x8c\x04\xf0\x9f\x8e\xb5tVdill-with-it\n\x8c\x04\xf0\x9f\x93\xaeI0\nC\x0c\x00\x01\x0c\x01\x1a\x01\x04\x01\x14\x01 \x01))t\x81cbuiltins\nglobals\n)R\x8c\x04\xf0\x9f\x93\xaet\x81\x940g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x05\x01.\xce\x966\x85R\x93g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x0b\x01\xa6&\xf6\xc6v\xa6tN.\xce\x85R\x93g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x06\x01.v\x96N\x0e\x85R\x93VWhat's the flag? \n\x85R0g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x06\x01.\xae\x0ev\x96\x85R\x93V> \n\x85R\x85R\x85R\x940g0\nC\x07\x01\xb6\xf6&v\x86N\x85Rg0\nC\x05\x01&\xa6\xa6\xce\x85R\x93Vfive nights as freddy\n\x85R0g0\nC\x07\x01\xb6\xf6&v\x86N\x85Rg0\nC\x08\x01\xa66ff\xae\x16\xce\x85R\x93g1\n\x85R0g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x05\x01.\xce\x966\x85R\x93g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x04\x01\x0e\x86\xb6\x85R\x93g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x0c\x01\xfa\xfaN\xf6\x1e\xfa\xfat.v\x96\x85R\x93g0\nC\x07\x01\xb6\xf6&v\x86N\x85Rg0\nC\n\x01\xce\xa6.\x9eF&v\x86N\x85R\x93g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x04\x01v\xa66\x85R\x93g1\n\x85R\x85Rg1\n\x87R\x85R\x940g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x04\x01\x9ev\x86\x85R\x93g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x04\x01\x0e\x86\xb6\x85R\x93g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x0c\x01\xfa\xfaN\xf6\x1e\xfa\xfat.v\x96\x85R\x93(I138\nI13\nI157\nI66\nI68\nI12\nI223\nI147\nI198\nI223\nI92\nI172\nI59\nI56\nI27\nI117\nI173\nI21\nI190\nI210\nI44\nI194\nI23\nI169\nI57\nI136\nI5\nI120\nI106\nI255\nI192\nI98\nI64\nI124\nI59\nI18\nI124\nI97\nI62\nI168\nI181\nI61\nI164\nI22\nI187\nI251\nI110\nI214\nI250\nI218\nI213\nI71\nI206\nI159\nI212\nI169\nI208\nI21\nI236\nlg2\n\x87R\x85R\x940g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x0b\x01\xfa\xfaN\xf6\xfa\xfat.v\x96\x85R\x93g3\ng0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x0b\x01\xfa\xfa\xa6v\xfa\xfat.v\x96\x85R\x93g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x04\x01v\xa66\x85R\x93g2\n\x85RI59\n\x86R\x86R\x940g0\nC\t\x01\xcev\x96.6\x96\xaeF\x85Rg0\nC\x11\x01\xfa\xfa\xb6\xa6.\x96.\xa6\xe6\xfa\xfat.\xce\x966\x85R\x93(VLooks like you got it!\nVNah, try again.\nlg4\n\x86R."
->>> pickletools.dis(larry)   
-    0: \x80 PROTO      4
-    2: c    GLOBAL     'types FunctionType'
-   22: (    MARK
-   23: c        GLOBAL     'types CodeType'
-   39: (        MARK
-   40: I            INT        1
-   43: I            INT        0
-...
- 1271: (    MARK
- 1272: V        UNICODE    'Looks like you got it!'
- 1296: V        UNICODE    'Nah, try again.'
- 1313: l        LIST       (MARK at 1271)
- 1314: g    GET        4
- 1317: \x86 TUPLE2
- 1318: R    REDUCE
- 1319: .    STOP
-highest protocol among opcodes = 4
-```
+![WEBP of running pickletools.dis(larry)](https://ikalco.github.io/writeups/2024/amateur_ctf/media/dill-with-it-2.webm)
 
 *Oh great its 1319 lines of nonsense*
 
 We're definitely going to need to read the docs for [`pickletools`](https://docs.python.org/3.10/library/pickletools.html) to understand this
->This module contains various constants relating to the intimate details of the [`pickle`](https://docs.python.org/3.10/library/pickle.html#module-pickle "pickle: Convert Python objects to streams of bytes and back.") module, ***some lengthy comments about the implementation***, and a few useful functions for analyzing pickled data.
+
+>This module contains various constants relating to the intimate details of the [`pickle`](https://docs.python.org/3.10/library/pickle.html#module-pickle "pickle: Convert Python objects to streams of bytes and back.") module,
+***some lengthy comments about the implementation***, and a few useful functions for analyzing pickled data.
 
 The page looks pretty empty but the description mentions lengthy comments, so it must be in the [source](https://github.com/python/cpython/blob/3.10/Lib/pickletools.py), lets look at it
 
@@ -166,7 +136,7 @@ Stack after:  ... callable(*pytuple)
       object returned by self.find_class(module, class) is pushed on the\
       stack, so unpickling subclasses can override this form of lookup.
 
-[`STACK_GLOBAL`](https://peps.python.org/pep-3154/#summary-of-new-opcodes) this one does the same thing as `GLOBAL` except it takes the strings from the stack
+`STACK_GLOBAL`[^2] this one does the same thing as `GLOBAL` except it takes the strings from the stack
 >Push a global object (module.attr) on the stack.
 
 >`STACK_GLOBAL`: take the two topmost stack items `module_name` and `qualname`, and push the result of looking up the dotted `qualname` in the module named `module_name`.
@@ -481,8 +451,8 @@ will be `results[0]` and it will return `'Looks like you go it'`
 From there we know that `not_got_flag`'s definition will need to be `False`\
 `not_got_flag = any(xored_list) || len(xored_input) != 59` -> `False`
 
-and for `not_got_flag` to be `False` we need\
-**both `any(xored_list)` and `len(xored_input) != 59` to be `False`**
+and for `not_got_flag` to be `False` we need **both `any(xored_list)`\
+and `len(xored_input) != 59` to be `False`**
 
 ###
 
@@ -502,7 +472,7 @@ it checks if any of the elements in `xored_list` are `True`,\
 which means every value in `xored_list` must be `False` for it to return `False`
 
 But `xored_list` is a list of integers... how does python check if an integer is `False`?
->In Python, the integer `0` is always `False`, while every other number, _including negative numbers_, are `True`.
+>In Python, **the integer `0` is always `False`**, while every other number, _including negative numbers_, are `True`.
 
 So, to have every value in `xored_list` be `False`,\
 **every integer in `xored_list` needs to be `0`**
@@ -512,33 +482,34 @@ So, to have every value in `xored_list` be `False`,\
 To understand how to do that lets look at the definition of `xored_list`
 `xored_list = map(int.__xor__, new_list, xored_input)`
 
-So, `xored_list` is a new list made from xoring every value of `new_list`\
-with every corresponding value of `xored_input`
+So, `xored_list` is made from xoring every value of `new_list` with\
+every corresponding value of `xored_input`
 
 But how do we get xor to return `0` for every value in `new_list` and `xored_input`?
 
-*google*...
-`how to get 0 out of xor`
+*google*[^3] `how to get 0 out of xor`
 >XOR is a logical operator that works on bits. Let’s denote it by `^`.
->If the two bits it takes as input are the same, the result is `0`, otherwise it is `1`.
+>**If the two bits it takes as input are the same, the result is `0`**, otherwise it is `1`.
 
 So, to have xor return `0` for every value in `new_list` and `xored_input`,
 **every value in `new_list` needs to be equal to every value `xored_input`**
 
 ###
 
-Let's start with the definition of `xored_input` so we can do the above\
-`xored_input = list(map(int.__xor__, random_bytes, user_input))`
+Let's start with the definition of `xored_input`, except we'll replace it with\
+`new_list` since they must be equal to each other\
+`new_list = list(map(int.__xor__, random_bytes, user_input))`
 
 Once again, like `xored_input`, we're xoring every value of `random_bytes`\
-with every corresponding value of `user_input`. It's also turning that result into a list, but that doesn't affect the actual data, so we'll ignore it.
+with every corresponding value of `user_input`.
 
-If we write out `xored_input` as an xor operation then we know that\
-`new_list == random_bytes ^ user_input`.\
-But now what? How can we reverse the xor to get `user_input`?
+But this time we want `user_input`, so how do we do that?\
+First let's write it out simply so we can understand it more clearly\
+`new_list = random_bytes ^ user_input`
 
-*google...*
-`how to inverse xor`
+hmm.. maybe we can inverse the xor and isolate `user_input`?
+
+*google*[^4] `how to inverse xor`
 >The inverse is XOR!
 If you have:
 >```java
@@ -550,8 +521,11 @@ If you have:
 >b = c^a; // or a^c
 >```
 
-Using this principle we can figure out that
-**`user_input == random_bytes ^ new_list`**
+great!\
+Using this principle we can figure out that\
+`new_list ^ random_bytes = user_input`\
+or, if we rearrange,\
+**`user_input = random_bytes ^ new_list`**
 
 ###
 
@@ -561,55 +535,150 @@ Now we need to find out what `random_bytes` is in order to xor it with\
 Luckily the random number generator is seeded earlier in the script, which means\
 that `random_bytes` isn't actually random and we can figure out it's value.
 
-To do so we can't simply run `random.randbytes()` because `random.shuffle()` is run earlier in the script which causes the random number generator to spit out different values.
+To do so we can't just run `random.randbytes()` because `random.shuffle()`\
+is run earlier in the script which causes the random number generator to spit out\
+different values.
 
-You may think all you need to do is use `random.randbytes()` to get it, but that won't won't work because `random.shuffle()` is used earlier in the script. This is because `random.randbytes()` and `random.shuffle()` use the same random number generator, and therefore whenever you call one of them it uses up the random values. So if you try to only run `random.randbytes()` you will get nonsense, but if you run `random.shuffle()` and then run `random.randbytes()` then you will get the real value of `random_bytes`.
+What we need to do is simulate the random number generator shuffling something\
+in the same way as was done originally, so that the correct bytes that are spit out by\
+`random.randbytes()`
+
+For example
+```python
+random.seed('seed')
+random.shuffle(list('hello'))
+rand1 = random.randbytes(1)
+
+random.seed('seed')
+random.shuffle(list('a' * 5))
+rand2 = random.randbytes(1)
+```
+In this example `rand1` will be the same as `rand2` because `random.shuffle()` was\
+used in the same way when both were generated.\
+
+You may say that they aren't the same since the characters aren't the same but the\
+characters don't matter. It's only the way the letters were shuffled that matters, and\
+therefore the only thing needed is for the length of the two shuffled strings to be the same
 
 ###
 
-Now that we know `random_bytes` we can xor it with `new_list` and get `user_input`. But it won't actually be the original user input, but instead a shuffled version of it due to the `random.shuffle(user_input)`.
+Now that we know `random_bytes` we can xor it with `new_list` and get `user_input`.\
+But it won't actually be the original user input, but instead a shuffled version of it due to the\
+`random.shuffle(user_input)`.
 
 There isn't a built in way to unshuffle something in python so we'll have to find a way to do it.
 
-*google...*
-`how to undo random.shuffle in python`
->```
+*google*[^5] `how to undo random.shuffle in python`
+
+>```python
 >import random
 >
 >def shuffle_under_seed(ls, seed):
->  # Shuffle the list ls using the seed `seed`
->  random.seed(seed)
->  random.shuffle(ls)
->  return ls
+>   # Shuffle the list ls using the seed `seed`
+>   random.seed(seed)
+>   random.shuffle(ls)
+>   return ls
 >
 >def unshuffle_list(shuffled_ls, seed):
->  n = len(shuffled_ls)
->  # Perm is [1, 2, ..., n]
->  perm = [i for i in range(1, n + 1)]
->  # Apply sigma to perm
->  shuffled_perm = shuffle_under_seed(perm, seed)
->  # Zip and unshuffle
->  zipped_ls = list(zip(shuffled_ls, shuffled_perm))
->  ls.sort(key=lambda x: x[1])
->  return [a for (a, b) in ls]
+>   n = len(shuffled_ls)
+>   # Perm is [1, 2, ..., n]
+>   perm = [i for i in range(1, n + 1)]
+>   # Apply sigma to perm
+>   shuffled_perm = shuffle_under_seed(perm, seed)
+>   # Zip and unshuffle
+>   zipped_ls = list(zip(shuffled_ls, shuffled_perm))
+>   zipped_ls.sort(key=lambda x: x[1])
+>   return [a for (a, b) in ls]
 >```
-This code basically just figures out where each element in a known list was moved, and then does the opposite to the given list in order to unshuffle it.
+This code basically just figures out where each element in a known list was moved, and\
+then does the opposite to the given list in order to unshuffle it.
+
+###
+
+Finally we have the unshuffled `user_input`, but it's not a string. It's a list of integers.\
+To turn it back into a string we need to interpret the integers as ASCII bytes using `bytes()`\
+and then we can run `.decode()` on it in order to turn it from a byte string into a normal string
 
 ### putting it all together
 
-First, let's set out what we know
+First let's define what we know
+* **we need the `random` module**
 * **the length of `user_input` should be `59`**
 * **we know the numbers in `new_list`**
-* **we can regenerate `random_bytes` using the seed**
-* **`user_input == random_bytes ^ new_list`**
-* **we can reverse the random shuffle on `user_input`**
+* **we know how to unshuffle a list**
 
-Ok, so first let's 
+```python
+import random
+
+def shuffle_under_seed(ls, seed):
+  # Shuffle the list ls using the seed `seed`
+  random.seed(seed)
+  random.shuffle(ls)
+  return ls
+
+def unshuffle_list(shuffled_ls, seed):
+  n = len(shuffled_ls)
+  # Perm is [1, 2, ..., n]
+  perm = [i for i in range(1, n + 1)]
+  # Apply sigma to perm
+  shuffled_perm = shuffle_under_seed(perm, seed)
+  # Zip and unshuffle
+  zipped_ls = list(zip(shuffled_ls, shuffled_perm))
+  zipped_ls.sort(key=lambda x: x[1])
+  return [a for (a, b) in zipped_ls]
+
+flag_len = 59
+new_list = [138, 13, 157, 66, 68, 12, 223, 147, 198, 223, 92, 172, 59, 56, 27, 117, 173, 21, 190, 210, 44, 194, 23, 169, 57, 136, 5, 120, 106, 255, 192, 98, 64, 124, 59, 18, 124, 97, 62, 168, 181, 61, 164, 22, 187, 251, 110, 214, 250, 218, 213, 71, 206, 159, 212, 169, 208, 21, 236]
+```
+
+next we need to get `user_input`, but to do that we need to
+* **regenerate `random_bytes` using the seed**
+* **`user_input = random_bytes ^ new_list`**
+* **unshuffle `user_input` into the flag**
+
+```python
+random.seed('five nights as freddy')
+random.shuffle(list('a' * flag_len))
+random_bytes = random.randbytes(flag_len)
+
+user_input_shuffled = list(map(int.__xor__, random_bytes, new_list))
+user_input = unshuffle_list(user_input_shuffled, 'five nights as freddy')
+```
+
+finally we just need to convert `user_input` from a list of integers into a string
+
+```python
+flag = bytes(user_input).decode()
+flag = ''.join(flag)
+print(flag)
+```
 
 ### solution
-The first half without the random stuff
-```
+
+<details>
+<summary>:checkered_flag:</summary>
+amateursCTF{p1ckL3-is_not_the_goat_l4rrY_is_m0R3_\:goat:ed}
+</details>
+
+```python
 import random
+
+def shuffle_under_seed(ls, seed):
+  # Shuffle the list ls using the seed `seed`
+  random.seed(seed)
+  random.shuffle(ls)
+  return ls
+
+def unshuffle_list(shuffled_ls, seed):
+  n = len(shuffled_ls)
+  # Perm is [1, 2, ..., n]
+  perm = [i for i in range(1, n + 1)]
+  # Apply sigma to perm
+  shuffled_perm = shuffle_under_seed(perm, seed)
+  # Zip and unshuffle
+  zipped_ls = list(zip(shuffled_ls, shuffled_perm))
+  zipped_ls.sort(key=lambda x: x[1])
+  return [a for (a, b) in zipped_ls]
 
 flag_len = 59
 new_list = [138, 13, 157, 66, 68, 12, 223, 147, 198, 223, 92, 172, 59, 56, 27, 117, 173, 21, 190, 210, 44, 194, 23, 169, 57, 136, 5, 120, 106, 255, 192, 98, 64, 124, 59, 18, 124, 97, 62, 168, 181, 61, 164, 22, 187, 251, 110, 214, 250, 218, 213, 71, 206, 159, 212, 169, 208, 21, 236]
@@ -618,20 +687,24 @@ random.seed('five nights as freddy')
 random.shuffle(list('a' * flag_len))
 random_bytes = random.randbytes(flag_len)
 
-# new_list ^ random_bytes
-flag_shuffled = list(map(int.__xor__, random_bytes, new_list))
+user_input_shuffled = list(map(int.__xor__, random_bytes, new_list))
+user_input = unshuffle_list(user_input_shuffled, 'five nights as freddy')
 
-random.seed('five nights as freddy')
-
-n = len(flag_shuffled)
-perm = [i for i in range(1, n + 1)]
-random.shuffle(perm)
-zipped_ls = list(zip(flag_shuffled, perm))
-zipped_ls.sort(key=lambda x: x[1])
-flag = [a for (a, b) in zipped_ls]
-
-flag = bytes(flag).decode()
+flag = bytes(user_input).decode()
 flag = ''.join(flag)
-
 print(flag)
 ```
+
+### other links
+>Some of these links may not work in the future btw
+
+[^1] [python pickle article](https://davidhamann.de/2020/04/05/exploiting-python-pickle/#how-to-dump-and-load)
+
+[^2] [STACK_GLOBAL explanation](https://peps.python.org/pep-3154/#summary-of-new-opcodes)
+
+[^3] [0 from xor](https://florian.github.io/xor-trick/#xor)
+
+[^4] [inverse xor](https://stackoverflow.com/questions/14279866/what-is-inverse-function-to-xor)
+
+[^5] [how to unshuffle](https://crypto.stackexchange.com/questions/78309/how-to-get-the-original-list-back-given-a-shuffled-list-and-seed)
+
