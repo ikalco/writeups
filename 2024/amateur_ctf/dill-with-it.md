@@ -698,13 +698,13 @@ print(flag)
 ### other links
 >Some of these links may not work in the future btw
 
-[^1] [python pickle article](https://davidhamann.de/2020/04/05/exploiting-python-pickle/#how-to-dump-and-load)
+[^1]: [python pickle article](https://davidhamann.de/2020/04/05/exploiting-python-pickle/#how-to-dump-and-load)
 
-[^2] [STACK_GLOBAL explanation](https://peps.python.org/pep-3154/#summary-of-new-opcodes)
+[^2]: [STACK_GLOBAL explanation](https://peps.python.org/pep-3154/#summary-of-new-opcodes)
 
-[^3] [0 from xor](https://florian.github.io/xor-trick/#xor)
+[^3]: [0 from xor](https://florian.github.io/xor-trick/#xor)
 
-[^4] [inverse xor](https://stackoverflow.com/questions/14279866/what-is-inverse-function-to-xor)
+[^4]: [inverse xor](https://stackoverflow.com/questions/14279866/what-is-inverse-function-to-xor)
 
-[^5] [how to unshuffle](https://crypto.stackexchange.com/questions/78309/how-to-get-the-original-list-back-given-a-shuffled-list-and-seed)
+[^5]: [how to unshuffle](https://crypto.stackexchange.com/questions/78309/how-to-get-the-original-list-back-given-a-shuffled-list-and-seed)
 
