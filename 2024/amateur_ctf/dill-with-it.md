@@ -43,6 +43,7 @@ You'll also notice that the serialization protocol version is dependent on the p
 using the module can lead to **RCE**
 
 Ok.. so the code will deserialize the binary string into an object and print it. Right?
+
 ![WEBP of running main.py](media/dill-with-it-1.webp)
 
 hmm..
@@ -62,6 +63,7 @@ Thankfully the above article shows us that we can use `pickletools`
 >If you are curious how the instructions in this pickle look like, you can use `pickletools` to create a disassembly: `pickletools.dis(pickled)`
 
 So lets do that
+
 ![WEBP of running pickletools.dis(larry)](media/dill-with-it-2.webp)
 
 *Oh great its 1319 lines of nonsense*
@@ -148,13 +150,10 @@ Stack after:  ... callable(*pytuple)
 >Store the stack top into the memo.  The stack is not popped.
 
 ### pain
-Now we can actually start looking at the disassembly of the pickle
+Now we can actually start looking at the disassembly of the pickle,\
+also the disassembly is explained in the comments on the right of it
+
 >***btw you don't have to read all of this section, it gets annoyingly redundant after a few blocks of disassembly***
-
-<details>
-<summary>decompiling the pickle disassembly by hand</summary>
-
->**read the comments at the right of the disassembly, they explain what's happening**
 
 ```
   2: c    GLOBAL     'types FunctionType'       # push types.FunctionType
@@ -404,8 +403,6 @@ memo_4 = memo_3 || len(memo_2) != 59
 results = ['Looks like you got it!', 'Nah, try again.']
 return results[memo_4]
 ```
-
-</details>
 
 ### actually reverse engineering
 Now we can combine all the snippets into a script and continue
