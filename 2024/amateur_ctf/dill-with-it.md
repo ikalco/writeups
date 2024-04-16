@@ -43,7 +43,7 @@ You'll also notice that the serialization protocol version is dependent on the p
 using the module can lead to **RCE**
 
 Ok.. so the code will deserialize the binary string into an object and print it. Right?
-![WEBP of running main.py](https://ikalco.github.io/writeups/2024/amateur_ctf/media/dill-with-it-1.webm)
+![WEBP of running main.py](media/dill-with-it-1.webp)
 
 hmm..
 It seems to be taking user input but an object can't do that so it's probably using that **RCE** from earlier to run `input()` or something like that
@@ -62,7 +62,7 @@ Thankfully the above article shows us that we can use `pickletools`
 >If you are curious how the instructions in this pickle look like, you can use `pickletools` to create a disassembly: `pickletools.dis(pickled)`
 
 So lets do that
-![WEBP of running pickletools.dis(larry)](https://ikalco.github.io/writeups/2024/amateur_ctf/media/dill-with-it-2.webm)
+![WEBP of running pickletools.dis(larry)](media/dill-with-it-2.webp)
 
 *Oh great its 1319 lines of nonsense*
 
