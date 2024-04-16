@@ -123,17 +123,17 @@ Stack before: ... callable pytuple\
 Stack after:  ... callable(*pytuple)
 
 `NEWOBJ` instantiates a class based on the stack and pushes the object onto the stack, same format as reduce
->The stack before should be thought of as containing a class\
-      object followed by an argument tuple (the tuple being the stack\
-      top).  Call these cls and args.  They are popped off the stack,\
-      and the value returned by cls.\_\_new\_\_(cls, *args) is pushed back\
+>The stack before should be thought of as containing a class
+      object followed by an argument tuple (the tuple being the stack
+      top).  Call these cls and args.  They are popped off the stack,
+      and the value returned by cls.\_\_new\_\_(cls, *args) is pushed back
       onto the stack.
 
 `GLOBAL` pushes a class/function from a module based on a string to the stack 
-> Two newline-terminated strings follow the GLOBAL opcode.  The first is\
-      taken as a module name, and the second as a class name.  The class\
-      object module.class is pushed on the stack.  More accurately, the\
-      object returned by self.find_class(module, class) is pushed on the\
+> Two newline-terminated strings follow the GLOBAL opcode.  The first is
+      taken as a module name, and the second as a class name.  The class
+      object module.class is pushed on the stack.  More accurately, the
+      object returned by self.find_class(module, class) is pushed on the
       stack, so unpickling subclasses can override this form of lookup.
 
 `STACK_GLOBAL`[^2] this one does the same thing as `GLOBAL` except it takes the strings from the stack
@@ -439,26 +439,26 @@ return results[not_got_flag]
 hmm...\
 The script looks like it takes `user_input`, does some stuff to it with `new_list` and random, and then checks whether you got the flag or not.
 
-I'm not exactly sure what the script does but maybe we can start with the\
-condition where we got the flag and it returns `'Looks like you got it'`,\
+I'm not exactly sure what the script does but maybe we can start with the
+condition where we got the flag and it returns `'Looks like you got it'`,
 then just **work backwards**.
 
 ###
 
-We know that `not_got_flag` will need to be `False` so that `results[False]`\
+We know that `not_got_flag` will need to be `False` so that `results[False]`
 will be `results[0]` and it will return `'Looks like you go it'`
 
 From there we know that `not_got_flag`'s definition will need to be `False`\
 `not_got_flag = any(xored_list) || len(xored_input) != 59` -> `False`
 
-and for `not_got_flag` to be `False` we need **both `any(xored_list)`\
+and for `not_got_flag` to be `False` we need **both `any(xored_list)`
 and `len(xored_input) != 59` to be `False`**
 
 ###
 
 Lets start with the easy part, we want `len(xored_input) != 59` to be `False`
 
-If we make `xored_input` 59 characters long, then `len(xored_input)` will\
+If we make `xored_input` 59 characters long, then `len(xored_input)` will
 return 59, and we know that `59 != 59` will be `False`
 
 ###
@@ -468,21 +468,21 @@ Now for the hard part, we want `any(xored_list)` to return `False`
 First let's understand the `any` function, here's the [docs](https://docs.python.org/3.10/library/functions.html#any)
 >Return `True` if any element of the _iterable_ is true. If the iterable is empty, return `False`.
 
-it checks if any of the elements in `xored_list` are `True`,\
+it checks if any of the elements in `xored_list` are `True`,
 which means every value in `xored_list` must be `False` for it to return `False`
 
 But `xored_list` is a list of integers... how does python check if an integer is `False`?
 >In Python, **the integer `0` is always `False`**, while every other number, _including negative numbers_, are `True`.
 
-So, to have every value in `xored_list` be `False`,\
+So, to have every value in `xored_list` be `False`,
 **every integer in `xored_list` needs to be `0`**
 
 ###
 
-To understand how to do that lets look at the definition of `xored_list`
+To understand how to do that lets look at the definition of `xored_list`\
 `xored_list = map(int.__xor__, new_list, xored_input)`
 
-So, `xored_list` is made from xoring every value of `new_list` with\
+So, `xored_list` is made from xoring every value of `new_list` with
 every corresponding value of `xored_input`
 
 But how do we get xor to return `0` for every value in `new_list` and `xored_input`?
@@ -496,7 +496,7 @@ So, to have xor return `0` for every value in `new_list` and `xored_input`,
 
 ###
 
-Let's start with the definition of `xored_input`, except we'll replace it with\
+Let's start with the definition of `xored_input`, except we'll replace it with
 `new_list` since they must be equal to each other\
 `new_list = list(map(int.__xor__, random_bytes, user_input))`
 
@@ -522,25 +522,25 @@ If you have:
 >```
 
 great!\
-Using this principle we can figure out that\
-`new_list ^ random_bytes = user_input`\
-or, if we rearrange,\
+Using this principle we can figure out that
+`new_list ^ random_bytes = user_input`
+or, if we rearrange,
 **`user_input = random_bytes ^ new_list`**
 
 ###
 
-Now we need to find out what `random_bytes` is in order to xor it with\
+Now we need to find out what `random_bytes` is in order to xor it with
 `new_list` and get `user_input`. But how do we do that? It's random...
 
-Luckily the random number generator is seeded earlier in the script, which means\
+Luckily the random number generator is seeded earlier in the script, which means
 that `random_bytes` isn't actually random and we can figure out it's value.
 
-To do so we can't just run `random.randbytes()` because `random.shuffle()`\
-is run earlier in the script which causes the random number generator to spit out\
+To do so we can't just run `random.randbytes()` because `random.shuffle()`
+is run earlier in the script which causes the random number generator to spit out
 different values.
 
-What we need to do is simulate the random number generator shuffling something\
-in the same way as was done originally, so that the correct bytes that are spit out by\
+What we need to do is simulate the random number generator shuffling something
+in the same way as was done originally, so that the correct bytes that are spit out by
 `random.randbytes()`
 
 For example
@@ -553,17 +553,17 @@ random.seed('seed')
 random.shuffle(list('a' * 5))
 rand2 = random.randbytes(1)
 ```
-In this example `rand1` will be the same as `rand2` because `random.shuffle()` was\
-used in the same way when both were generated.\
+In this example `rand1` will be the same as `rand2` because `random.shuffle()` was
+used in the same way when both were generated.
 
-You may say that they aren't the same since the characters aren't the same but the\
-characters don't matter. It's only the way the letters were shuffled that matters, and\
+You may say that they aren't the same since the characters aren't the same but the
+characters don't matter. It's only the way the letters were shuffled that matters, and
 therefore the only thing needed is for the length of the two shuffled strings to be the same
 
 ###
 
-Now that we know `random_bytes` we can xor it with `new_list` and get `user_input`.\
-But it won't actually be the original user input, but instead a shuffled version of it due to the\
+Now that we know `random_bytes` we can xor it with `new_list` and get `user_input`.
+But it won't actually be the original user input, but instead a shuffled version of it due to the
 `random.shuffle(user_input)`.
 
 There isn't a built in way to unshuffle something in python so we'll have to find a way to do it.
@@ -590,13 +590,13 @@ There isn't a built in way to unshuffle something in python so we'll have to fin
 >   zipped_ls.sort(key=lambda x: x[1])
 >   return [a for (a, b) in ls]
 >```
-This code basically just figures out where each element in a known list was moved, and\
+This code basically just figures out where each element in a known list was moved, and
 then does the opposite to the given list in order to unshuffle it.
 
 ###
 
-Finally we have the unshuffled `user_input`, but it's not a string. It's a list of integers.\
-To turn it back into a string we need to interpret the integers as ASCII bytes using `bytes()`\
+Finally we have the unshuffled `user_input`, but it's not a string. It's a list of integers.
+To turn it back into a string we need to interpret the integers as ASCII bytes using `bytes()`
 and then we can run `.decode()` on it in order to turn it from a byte string into a normal string
 
 ### putting it all together
